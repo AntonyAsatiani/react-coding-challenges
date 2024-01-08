@@ -5,13 +5,24 @@ import '../styles/_discover.scss';
 
 const spotifyUrl = process.env.REACT_APP_SPOTIFY_URL
 
+const urlToDataMap = {
+  'featured-playlists': 'playlists',
+  'categories': 'categories',
+  'new-releases': 'albums',
+}
+
 const sendRequest = async (path) => {
-  const data = await axios.get(`${spotifyUrl}/browse/${path}`, {
+  if (!localStorage.getItem('bearerToken')) {
+    await getAuthToken();
+  }
+  const response = await axios.get(`${spotifyUrl}/browse/${path}`, {
     headers: {
-      Authorization: `Bearer BQA526mUC_8EmQ2ME-Dj35NHtROG1m8JryXQc8xdsDydzYiJ2BTTKb8vy70WhC0LrhsDASQeKBLiX0EfeQeQIjS5Ew3Ow4tU9So_SKuSX_C_L1nRuvs`,
+      Authorization: `Bearer ${JSON.parse(localStorage.getItem('bearerToken')).data}`,
     }
   });
 
+  const data = response.data[urlToDataMap[path]].items
+  return data;
 }
 
 const getAuthToken = async () => {
@@ -25,12 +36,9 @@ const getAuthToken = async () => {
       'Content-Type': 'application/x-www-form-urlencoded'
     },
   });
-  console.log('token :>> ', token.data.access_token);
-  return token.data.access_token;
+  const tokenDataToSave ={data: token.data.access_token, expirationTime: token.data.expires_in}
+  localStorage.setItem('bearerToken', JSON.stringify(tokenDataToSave));
 }
-( async () => {
-  // await getAuthToken();
-})();
 
 export default class Discover extends Component {
   constructor() {
@@ -42,32 +50,21 @@ export default class Discover extends Component {
       categories: []
     };
   }
-    async setPlaylist() {
-      const data = await axios.get(`${spotifyUrl}/browse/featured-playlists`, {
-        headers: {
-          Authorization: `Bearer BQA526mUC_8EmQ2ME-Dj35NHtROG1m8JryXQc8xdsDydzYiJ2BTTKb8vy70WhC0LrhsDASQeKBLiX0EfeQeQIjS5Ew3Ow4tU9So_SKuSX_C_L1nRuvs`,
-        }
-      });
-      this.setState({playlists: data.data.playlists.items})
-    }
 
-    async setBrowseCategory() {
-      const data = await axios.get(`${spotifyUrl}/browse/categories`, {
-        headers: {
-          Authorization: `Bearer BQA526mUC_8EmQ2ME-Dj35NHtROG1m8JryXQc8xdsDydzYiJ2BTTKb8vy70WhC0LrhsDASQeKBLiX0EfeQeQIjS5Ew3Ow4tU9So_SKuSX_C_L1nRuvs`,
-        }
-      });
-      this.setState({categories: data.data.categories.items});
-    }
+  async setPlaylist() {
+    const data = await sendRequest('featured-playlists');
+    this.setState({playlists: data})
+  }
 
-    async setNewReleases() {
-      const data = await axios.get(`${spotifyUrl}/browse/new-releases`, {
-        headers: {
-          Authorization: `Bearer BQA526mUC_8EmQ2ME-Dj35NHtROG1m8JryXQc8xdsDydzYiJ2BTTKb8vy70WhC0LrhsDASQeKBLiX0EfeQeQIjS5Ew3Ow4tU9So_SKuSX_C_L1nRuvs`,
-        }
-      });
-      this.setState({newReleases: data.data.albums.items});
-    }
+  async setBrowseCategory() {
+    const data = await sendRequest('categories');
+    this.setState({categories: data});
+  }
+
+  async setNewReleases() {
+    const data = await sendRequest('new-releases');
+    this.setState({newReleases: data});
+  }
 
   componentDidMount() {
     this.setPlaylist();
